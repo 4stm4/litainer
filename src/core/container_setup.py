@@ -2,6 +2,8 @@ import os
 import platform
 from pathlib import Path
 from core.interfaces import FileSystemPort, LoggerPort, NetworkConfiguratorPort
+import shutil
+import subprocess
 
 class ContainerSetup:
 
@@ -62,3 +64,38 @@ class ContainerSetup:
                 self.logger.info(f"Скопирована библиотека: {lib}")
             else:
                 self.logger.error(f"Библиотека не найдена: {lib}")
+
+    def copy_binaries_and_dependencies(self, rootfs_path: Path, binaries: list[str]):
+        for binary in binaries:
+            # Найти путь к бинарнику
+            result = subprocess.run(["which", binary], capture_output=True, text=True)
+            binary_path = result.stdout.strip()
+            if not binary_path or not Path(binary_path).exists():
+                self.logger.error(f"Бинарник {binary} не найден!")
+                continue
+            # Копировать бинарник
+            dest_bin = rootfs_path / "bin" / Path(binary_path).name
+            dest_bin.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(binary_path, dest_bin)
+            self.logger.info(f"Скопирован бинарник: {binary_path} -> {dest_bin}")
+            # Найти и скопировать зависимости
+            ldd_result = subprocess.run(["ldd", binary_path], capture_output=True, text=True)
+            for line in ldd_result.stdout.splitlines():
+                parts = line.strip().split(" => ")
+                if len(parts) == 2:
+                    lib_path = parts[1].split()[0]
+                elif "/" in line:
+                    lib_path = line.strip().split()[0]
+                else:
+                    continue
+                lib_path = lib_path.strip()
+                if Path(lib_path).exists():
+                    dest_lib = rootfs_path / "lib" / Path(lib_path).name
+                    dest_lib.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(lib_path, dest_lib)
+                    self.logger.info(f"Скопирована зависимость: {lib_path} -> {dest_lib}")
+                else:
+                    self.logger.error(f"Зависимость {lib_path} не найдена!")
+
+    def detach_image(self, device: str):
+        subprocess.run(["hdiutil", "detach", device], check=True)

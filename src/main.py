@@ -39,6 +39,7 @@ if __name__ == "__main__":
         logging_adapter.error(str(e))
     setup.setup_network(ROOTFS_PATH)
 
-
     # Список пакетов для установки
     packages = ["bash", "coreutils", "curl", "vim"]
+    package_installer.install_base_packages(packages)
+    setup.copy_binaries_and_dependencies(ROOTFS_PATH, packages)
