@@ -1,0 +1,170 @@
+{
+    "name": "system",
+    "version": "1.0.0",
+    "tables": {
+        "System": {
+            "isRoot": true,
+            "maxRows": 1,
+            "columns": {
+                "hostname": {
+                    "type": {
+                        "key": "string",
+                        "min": 0,
+                        "max": 1
+                    }
+                },
+                "timezone": {
+                    "type": {
+                        "key": "string",
+                        "min": 0,
+                        "max": 1
+                    }
+                },
+                "logging_level": {
+                    "type": {
+                        "key": "string",
+                        "min": 0,
+                        "max": 1
+                    }
+                }
+            }
+        },
+        "Interface": {
+            "indexes": [
+                ["name"]
+            ],
+            "columns": {
+                "name": {
+                    "type": "string"
+                },
+                "ip": {
+                    "type": {
+                        "key": "string",
+                        "min": 0,
+                        "max": 1
+                    }
+                },
+                "mtu": {
+                    "type": {
+                        "key": "integer",
+                        "min": 0,
+                        "max": 1
+                    }
+                },
+                "vlan": {
+                    "type": {
+                        "key": "integer",
+                        "min": 0,
+                        "max": 1
+                    }
+                },
+                "state": {
+                    "type": {
+                        "key": "string",
+                        "min": 0,
+                        "max": 1
+                    }
+                }
+            }
+        },
+        "VirtualMachine": {
+            "indexes": [
+                ["name"]
+            ],
+            "columns": {
+                "name": { "type": "string" },
+                "cpu": {
+                    "type": {
+                        "key": "integer",
+                        "min": 0,
+                        "max": 1
+                    }
+                },
+                "ram": {
+                    "type": {
+                        "key": "integer",
+                        "min": 0,
+                        "max": 1
+                    }
+                },
+                "disk_path": {
+                    "type": {
+                        "key": "string",
+                        "min": 0,
+                        "max": 1
+                    }
+                },
+                "state": {
+                    "type": {
+                        "key": "string",
+                        "min": 0,
+                        "max": 1
+                    }
+                },
+                "pci_passthrough": {
+                    "type": {
+                        "key": "string",
+                        "min": 0,
+                        "max": "unlimited"
+                    }
+                }
+            }
+        },
+        "Storage": {
+            "indexes": [
+                ["target_iqn"]
+            ],
+            "columns": {
+                "target_iqn": { "type": "string" },
+                "portal_ip": {
+                    "type": {
+                        "key": "string",
+                        "min": 0,
+                        "max": 1
+                    }
+                },
+                "lun": {
+                    "type": {
+                        "key": "integer",
+                        "min": 0,
+                        "max": 1
+                    }
+                },
+                "mount_point": {
+                    "type": {
+                        "key": "string",
+                        "min": 0,
+                        "max": 1
+                    }
+                }
+            }
+        },
+        "Telemetry": {
+            "isRoot": false,
+            "maxRows": 1,
+            "columns": {
+                "cpu_load": {
+                    "type": {
+                        "key": "real",
+                        "min": 0,
+                        "max": 1
+                    }
+                },
+                "temp": {
+                    "type": {
+                        "key": "real",
+                        "min": 0,
+                        "max": 1
+                    }
+                },
+                "ram_free": {
+                    "type": {
+                        "key": "integer",
+                        "min": 0,
+                        "max": 1
+                    }
+                }
+            }
+        }
+    }
+}

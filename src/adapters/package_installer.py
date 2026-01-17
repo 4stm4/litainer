@@ -5,7 +5,6 @@ import logging
 import subprocess
 from pathlib import Path
 from typing import List
-import glob
 
 class PackageInstaller:
     """
@@ -40,13 +39,27 @@ class PackageInstaller:
         try:
             subprocess.run(["ar", "x", str(deb_path)], cwd=self.temp_path, check=True)
 
-            data_file = self.temp_path / "data.tar.xz"
-            if not data_file.exists():
-                logging.error(f"Файл {data_file} не найден в {deb_path}!")
+            data_archives = list(self.temp_path.glob("data.tar.*"))
+            if not data_archives:
+                logging.error(f"Файл data.tar.* не найден в {deb_path}!")
                 return
 
-            with tarfile.open(data_file, mode="r:xz") as tar:
-                tar.extractall(path=self.rootfs_path)
+            data_file = data_archives[0]
+            suffix = "".join(data_file.suffixes)
+
+            if suffix.endswith(".tar.zst"):
+                subprocess.run(
+                    ["tar", "--zstd", "-xf", str(data_file), "-C", str(self.rootfs_path)],
+                    check=True,
+                )
+            else:
+                mode = "r:xz" if suffix.endswith(".tar.xz") else "r:gz" if suffix.endswith(".tar.gz") else None
+                if not mode:
+                    logging.error(f"Неизвестный формат архива данных: {data_file}")
+                    return
+                with tarfile.open(data_file, mode=mode) as tar:
+                    tar.extractall(path=self.rootfs_path)
+
             logging.info(f"Пакет {deb_path.name} успешно установлен.")
 
         except subprocess.CalledProcessError as e:
@@ -55,8 +68,8 @@ class PackageInstaller:
             logging.error(f"Ошибка при чтении tar архива {data_file}: {e}")
         finally:
             # Очистка временных файлов
-            if data_file.exists():
-                data_file.unlink()
+            for tarball in self.temp_path.glob("data.tar.*"):
+                tarball.unlink()
             for file in self.temp_path.glob("*.deb"):
                 file.unlink()
 
@@ -72,7 +85,7 @@ class PackageInstaller:
             if not self._is_apt_get_available():
                 raise EnvironmentError("apt-get не найден. Убедитесь, что он установлен и доступен в PATH.")
             subprocess.run(
-                ["apt-get", "download", "-y",  package_name],
+                ["apt-get", "download", package_name],
                 cwd=self.temp_path,
                 check=True,
                 capture_output=True,

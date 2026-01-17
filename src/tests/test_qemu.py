@@ -1,7 +1,9 @@
 import subprocess
-from pathlib import Path
 import sys
 import os
+import time
+import socket
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent
 IMG_PATH = PROJECT_ROOT / "raspi.img"
@@ -9,6 +11,7 @@ KERNEL_IMAGE = PROJECT_ROOT / "temp" / "rpi_linux" / "arch/arm64/boot/Image"
 DTB_FILE = PROJECT_ROOT / "temp" / "rpi_linux" / "arch/arm64/boot/dts" / "broadcom" / "bcm2710-rpi-3-b-plus.dtb"
 
 QEMU_CMD = "qemu-system-aarch64"
+READY_MARKERS = {"OVSDB_STARTED", "NET_AGENT_STARTED"}
 
 # Добавить путь к util-linux от Homebrew в PATH
 brew_prefix = subprocess.run(["brew", "--prefix"], capture_output=True, text=True).stdout.strip()
@@ -48,19 +51,41 @@ def run_qemu():
         "-kernel", str(KERNEL_IMAGE),
         "-dtb", str(DTB_FILE),
         "-drive", f"file={IMG_PATH},format=raw,if=sd",
-        "-append", "console=ttyAMA0 root=/dev/mmcblk0p2 rootfstype=ext4 rw",
+        "-append", "console=ttyAMA0 root=/dev/mmcblk0p2 rootfstype=ext4 rw init=/etc/init.d/rcS",
+        "-netdev", "user,id=net0,hostfwd=tcp::6640-:6640",
+        "-device", "virtio-net-pci,netdev=net0",
         "-serial", "stdio",
         "-no-reboot"
     ]
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        seen = set()
+        start = time.time()
         for line in proc.stdout:
             print(line, end="")
-            if "login:" in line or "Welcome" in line or "bash" in line:
-                print("QEMU: Система загрузилась успешно!")
+            for marker in READY_MARKERS:
+                if marker in line:
+                    seen.add(marker)
+            if "Kernel panic" in line:
+                print("ОШИБКА: Kernel panic в гостевой системе.")
                 proc.terminate()
-                sys.exit(0)
-        proc.wait(timeout=60)
+                sys.exit(1)
+            if seen == READY_MARKERS:
+                # Проверяем доступность OVSDB по hostfwd на 6640
+                try:
+                    with socket.create_connection(("127.0.0.1", 6640), timeout=5) as s:
+                        print("QEMU: ovsdb-server доступен на tcp/6640 (hostfwd).")
+                        proc.terminate()
+                        sys.exit(0)
+                except Exception as e:
+                    print(f"ОШИБКА: не удалось подключиться к ovsdb-server: {e}")
+                    proc.terminate()
+                    sys.exit(1)
+            if time.time() - start > 180:
+                print("ОШИБКА: таймаут ожидания маркеров запуска ovsdb-server.")
+                proc.terminate()
+                sys.exit(1)
+        proc.wait(timeout=30)
     except Exception as e:
         print(f"ОШИБКА при запуске QEMU: {e}")
         sys.exit(1)
