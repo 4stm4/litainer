@@ -492,7 +492,10 @@ class LinuxKernel:
             [
                 "make", f"-j{jobs}",
                 "-C", "src",
+                # Makefile модуля читает KERNELDIR (KDIR игнорируется); без неё
+                # откатывается на /lib/modules/$(uname -r)/build хоста и падает.
                 f"KDIR={self.rpi_repo_path}",
+                f"KERNELDIR={self.rpi_repo_path}",
                 f"ARCH={self.kernel_arch}",
                 f"CROSS_COMPILE={self.cross_compile}",
             ],

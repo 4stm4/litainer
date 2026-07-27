@@ -335,6 +335,20 @@ esac
     # ------------------------------------------------------------------
 
     def _nftables_conf(self, root: Path) -> None:
+        # Источник истины — configs/nftables.nft из репозитория tinyWiFi
+        # (та же ветка, что и бинарник). Содержит chain schedule + jump,
+        # без которых расписание молчит, а tinywifi-web на старте кидает
+        # "nftables 'schedule' chain missing". Встроенный ruleset ниже — fallback.
+        dest = root / "etc" / "nftables" / "tinywifi.nft"
+        repo_nft = self._WEB_REPO_DIR / "configs" / "nftables.nft"
+        if repo_nft.exists():
+            shutil.copy2(repo_nft, dest)
+            logging.info("nftables.nft взят из репо tinyWiFi (%s)", repo_nft)
+            return
+        logging.warning(
+            "configs/nftables.nft не найден в репо — пишу встроенный ruleset "
+            "БЕЗ chain schedule (расписание работать не будет)"
+        )
         (root / "etc" / "nftables" / "tinywifi.nft").write_text(
             f"#!/usr/sbin/nft -f\n"
             f"# /etc/nftables/tinywifi.nft — TinyWifi NAT\n"
@@ -380,6 +394,20 @@ esac
 
     def _tinywifi_conf(self, root: Path) -> None:
         """Конфиг для tinywifi-web (github.com/4stm4/tinyWiFi)."""
+        # Источник истины — configs/tinywifi.toml из репо. Задаёт HTTPS-листенер
+        # (listen=:8443) + http_redirect_listen=:8080. Встроенный ниже — устаревший
+        # MVP (listen=:80 без редиректа): с v0.2.0 это даёт HTTPS на порту 80 и
+        # ломает и http://host, и https://host. Оставлен только как fallback.
+        dest = root / "etc" / "tinywifi" / "tinywifi.toml"
+        repo_toml = self._WEB_REPO_DIR / "configs" / "tinywifi.toml"
+        if repo_toml.exists():
+            shutil.copy2(repo_toml, dest)
+            logging.info("tinywifi.toml взят из репо tinyWiFi (%s)", repo_toml)
+            return
+        logging.warning(
+            "configs/tinywifi.toml не найден в репо — пишу встроенный "
+            "(listen=:80 HTTP, без HTTPS-редиректа)"
+        )
         (root / "etc" / "tinywifi" / "tinywifi.toml").write_text(
             "[web]\n"
             "listen = \"0.0.0.0:80\"\n\n"
